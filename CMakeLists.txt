@@ -5,12 +5,6 @@ project(stntool)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_CXX_STANDARD 20)
 
-find_package(Qt5Widgets REQUIRED)
-
-set(CMAKE_AUTOMOC ON)
-set(CMAKE_AUTOUIC ON)
-set(CMAKE_AUTORCC ON)
-
 include_directories(${CMAKE_BINARY_DIR})
 include_directories(cxxopts/include)
 
