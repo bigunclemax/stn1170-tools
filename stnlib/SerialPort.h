@@ -58,7 +58,7 @@ public:
         }
     };
 
-    SerialPort(string port, uint32_t baudrate = 38400);
+    SerialPort(string port, uint32_t baudrate = 0);
 
 //    SerialHandler(sControllerSettings init_settings, QObject *parent = nullptr);
 //    ~SerialHandler() override;
@@ -77,10 +77,11 @@ public:
     static void enumerate_ports();
 private:
 
-    static constexpr int check_baudrate_timeout = 3000; ///< max els response timeout in ms
+    static constexpr int transaction_timeout = 3000;
+    static constexpr int check_baudrate_timeout = 1000; ///< max els response timeout in ms
     static constexpr int set_baudrate_timeout = 1000;   ///< baud rate switch timeout in ms
 
-    std::pair<int, std::string> serial_transaction(const std::string &req, int timeout);
+    std::pair<int, std::string> serial_transaction(const std::string &req);
 
 
     std::unique_ptr<serial::Serial> m_serial;

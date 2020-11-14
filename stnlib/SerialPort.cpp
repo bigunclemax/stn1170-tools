@@ -30,17 +30,31 @@ static inline void print_buffer(int rdlen, const unsigned char *const buf, int i
 SerialPort::SerialPort(string port, uint32_t baudrate): m_portName(std::move(port)) {
 
     try {
-        m_serial = std::make_unique<serial::Serial>(m_portName, baudrate, serial::Timeout::simpleTimeout(3000));
+        m_serial = std::make_unique<serial::Serial>(m_portName,
+                                                    baudrate,
+                                                    serial::Timeout::simpleTimeout(transaction_timeout));
     } catch (serial::IOException &e) {
         throw std::runtime_error(e.what());
     }
+
+    if (baudrate) {
+        if(check_baudrate(baudrate))
+            throw std::runtime_error("can't connect to adapter with baud: " + std::to_string(baudrate));
+    } else {
+        baudrate = detect_baudrate();
+        if(baudrate < 0) {
+            throw std::runtime_error("can't auto detect adapter baud");
+        }
+    }
+
+    serial_transaction("ATE0\r");
 }
 
 void SerialPort::enumerate_ports()
 {
     vector<serial::PortInfo> devices_found = serial::list_ports();
 
-    vector<serial::PortInfo>::iterator iter = devices_found.begin();
+    auto iter = devices_found.begin();
 
     while( iter != devices_found.end() )
     {
@@ -57,15 +71,21 @@ int SerialPort::check_baudrate(uint32_t baud) {
 
     m_serial->setBaudrate(baud);
 
+    auto tmp_timeout = m_serial->getTimeout();
+    auto t = serial::Timeout::simpleTimeout(check_baudrate_timeout);
+    m_serial->setTimeout(t);
+
     /* clear */
-    if(serial_transaction("?\r", check_baudrate_timeout).first) {
+    if(serial_transaction("?\r").first) {
         return -1;
     }
 
-    auto r = serial_transaction("ATWS\r", check_baudrate_timeout);
+    auto r = serial_transaction("ATWS\r");
     if(r.first) {
         return -1;
     }
+
+    m_serial->setTimeout(tmp_timeout);
 
     if (r.second.find("ELM327 v1.3a") == std::string::npos) {
         return -1;
@@ -90,8 +110,6 @@ int SerialPort::set_baudrate(uint32_t baud, bool save) {
 
     auto curr_baud = m_serial->getBaudrate();
 
-    serial_transaction("ATE0\r", 0);
-
     const unsigned io_buff_max_len = 1024; //alloc 1kb buffer
     char io_buff[io_buff_max_len];
 
@@ -108,7 +126,7 @@ int SerialPort::set_baudrate(uint32_t baud, bool save) {
     auto bytes_read = m_serial->readline(read_line, 65536, "\r");
     print_buffer(bytes_read, reinterpret_cast<const unsigned char *const>(read_line.c_str()), false);
     if(read_line.find("OK") == std::string::npos) {
-        std::cerr << "@DBG@ " << __PRETTY_FUNCTION__ << " [" << __LINE__ << "]" << std::endl;
+        m_serial->readline(read_line, 65536, ">");
         return -1;
     }
 
@@ -121,7 +139,6 @@ int SerialPort::set_baudrate(uint32_t baud, bool save) {
 
     /* Host: received a valid STI string? */
     if(read_line.find("STN1170 v3.3.1") == std::string::npos) {
-        std::cerr << "@DBG@ " << __PRETTY_FUNCTION__ << " [" << __LINE__ << "]" << std::endl;
         goto cleanup;
     }
 
@@ -132,23 +149,19 @@ int SerialPort::set_baudrate(uint32_t baud, bool save) {
     print_buffer(read_line.size(), reinterpret_cast<const unsigned char *const>(read_line.c_str()), false);
 
     if(read_line.find("OK") == std::string::npos) {
-        std::cerr << "@DBG@ " << __PRETTY_FUNCTION__ << " [" << __LINE__ << "]" << std::endl;
         goto cleanup;
     }
 
-    std::cerr << "@DBG@ " << __PRETTY_FUNCTION__ << " [" << __LINE__ << "]" << std::endl;
-    std::cerr << "@DBG@ curr_baud " << m_serial->getBaudrate() << std::endl;
-
     if(save)
-        serial_transaction("STWBR\r", 0);
+        serial_transaction("STWBR\r");
 
     return 0;
 
 cleanup:
-    //TODO: clear read buffer
     std::this_thread::sleep_for(std::chrono::milliseconds(set_baudrate_timeout));
     m_serial->setBaudrate(curr_baud);
-    serial_transaction("?\r", 0);
+    m_serial->write("?\r");
+    m_serial->readline(read_line, 65536);
 
     return -1;
 }
@@ -157,7 +170,7 @@ int SerialPort::maximize_baudrate() {
 
     /* set baudrate timeout in ms */
     std::string str = "STBRT " + std::to_string(set_baudrate_timeout) + "\r";
-    if(serial_transaction(str, 0).first) {
+    if(serial_transaction(str).first) {
         return -1;
     }
 
@@ -179,11 +192,13 @@ int SerialPort::maximize_baudrate() {
         baud = baud_arr[j];
     }
 
+    serial_transaction("STWBR\r");
+
     return baud;
 }
 
 std::pair<int, std::string>
-SerialPort::serial_transaction(const std::string &req, int timeout) {
+SerialPort::serial_transaction(const std::string &req) {
 
     print_buffer(req.size(), reinterpret_cast<const unsigned char *const>(req.data()), true);
 
@@ -199,6 +214,15 @@ SerialPort::serial_transaction(const std::string &req, int timeout) {
 
 std::string SerialPort::get_info() {
 
-    auto res = serial_transaction("STI\r", 0);
-    return res.second;
+    auto f = [](const string& s){ return s.substr(0, s.find('\r'));};
+
+    std::stringstream ss;
+    ss << "Baud:\t"  << m_serial->getBaudrate() << std::endl;
+    ss << "ATI:\t"   << f(serial_transaction("ATI\r").second) << std::endl;
+    ss << "STDI:\t"  << f(serial_transaction("STDI\r").second) << std::endl;
+    ss << "STIX:\t"  << f(serial_transaction("STIX\r").second) << std::endl;
+    ss << "STMFR:\t" << f(serial_transaction("STMFR\r").second) << std::endl;
+    ss << "STSN:\t"  << f(serial_transaction("STSN\r").second) << std::endl;
+
+    return ss.str();
 }

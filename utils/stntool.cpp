@@ -10,19 +10,18 @@ int main(int argc, char *argv[])
     try {
         bool verbose = false;
         bool info = false;
-        bool detect = false;
         bool list = false;
         bool maximize = false;
         int wish_baud = 0;
+        int connect_baud = 0;
 
         cxxopts::Options options("stntool", "tool for STN11xx devices configuration");
         options.add_options()
                 ("l,list", "list serial ports", cxxopts::value<bool>(list))
-                ("s,speed", "set serial port baud", cxxopts::value<int>(wish_baud))
-                ("d,detect", "autodetect serial port baud", cxxopts::value<bool>(detect))
+                ("s,speed", "set STN11xx UART baud", cxxopts::value<int>(wish_baud))
                 ("p,port","serial port", cxxopts::value<string>())
-//                ("b,baud", "force specify serial port baud")
-                ("m,maximize","maximize STN11xx device baudrate", cxxopts::value<bool>(maximize))
+                ("b,baud", "specify STN11xx UART baud", cxxopts::value<int>(connect_baud))
+                ("m,maximize","maximize STN11xx UART baud", cxxopts::value<bool>(maximize))
                 ("i,info","info about STN11xx device", cxxopts::value<bool>(info))
                 ("v,verbose","Verbose output")
                 ("h,help","Print help");
@@ -46,50 +45,32 @@ int main(int argc, char *argv[])
             return 0;
         }
 
-        if (detect) {
-            auto serial = SerialPort(result["port"].as<string>());
-            auto serial_baud = serial.detect_baudrate();
-            if (serial_baud > 0) {
-                cout << "Device baud is: " << serial_baud << std::endl;
-            } else {
-                cout << "Detect device baud error" << std::endl;
-            }
-            return 0;
-        }
-
         if (wish_baud) {
-            auto serial = SerialPort(result["port"].as<string>());
-            auto serial_baud = serial.detect_baudrate();
-            if (serial.set_baudrate(wish_baud) > 0) {
-                cout << "Set device baud: " << wish_baud << std::endl;
-            } else {
+            auto serial = SerialPort(result["port"].as<string>(), connect_baud);
+            if (serial.set_baudrate(wish_baud, true)) {
                 cout << "Set device baud error" << std::endl;
+            } else {
+                cout << "Set device baud: " << wish_baud << std::endl;
             }
 
             return 0;
         }
 
         if (maximize) {
-            auto serial = SerialPort(result["port"].as<string>());
-            auto serial_baud = serial.detect_baudrate();
-            if (serial_baud > 0) {
-                auto maximized_baud = serial.maximize_baudrate();
-                if (maximized_baud > 0) {
-                    cout << "Device baud maximized to: " << maximized_baud << std::endl;
-                } else {
-                    cout << "Maximize device baud error" << std::endl;
-                }
+            auto serial = SerialPort(result["port"].as<string>(), connect_baud);
+            auto maximized_baud = serial.maximize_baudrate();
+            if (maximized_baud > 0) {
+                cout << "Device baud maximized to: " << maximized_baud << std::endl;
             } else {
-                cout << "Detect device baud error" << std::endl;
+                cout << "Maximize device baud error" << std::endl;
             }
 
             return 0;
         }
 
         if (info) {
-            auto serial = SerialPort(result["port"].as<string>());
-            if (serial.detect_baudrate() > 0)
-                cout << "Device: " << serial.get_info() << std::endl;
+            auto serial = SerialPort(result["port"].as<string>(), connect_baud);
+            cout << serial.get_info() << std::endl;
 
             return 0;
         }
