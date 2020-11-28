@@ -8,6 +8,7 @@
 #include <string>
 #include <memory>
 #include "serial/serial.h"
+#include <set>
 
 using std::string;
 using std::vector;
@@ -25,7 +26,7 @@ enum CAN_PROTO {
     CAN_HS
 };
 
-const uint32_t baud_arr[] = {
+const std::set<uint32_t> baud_arr = {
         9600,
         19200,
         38400,
@@ -45,7 +46,6 @@ const uint32_t baud_arr[] = {
         3500000,
         4000000
 };
-const int baud_arr_sz = sizeof(baud_arr) / sizeof(baud_arr[0]);
 
 class SerialPort {
 public:
@@ -58,11 +58,7 @@ public:
         }
     };
 
-    SerialPort(string port, uint32_t baudrate = 0);
-
-//    SerialHandler(sControllerSettings init_settings, QObject *parent = nullptr);
-//    ~SerialHandler() override;
-//    int transaction(int waitTimeout, const std::string &request);
+    explicit SerialPort(string port, uint32_t baudrate = 0, bool verbose = false);
 
     int check_baudrate(uint32_t baud);
 
@@ -85,7 +81,8 @@ private:
 
 
     std::unique_ptr<serial::Serial> m_serial;
-    string m_portName;
+    string  m_portName;
+    bool    m_verbose;
 };
 }
 

@@ -12,11 +12,11 @@ add_subdirectory(serial)
 
 add_library(stnlib stnlib/SerialPort.cpp)
 target_include_directories(stnlib PRIVATE ./serial/include)
-target_compile_definitions(stnlib PRIVATE DEBUG DEBUG_PRINT_HEX)
+#target_compile_definitions(stnlib PRIVATE DEBUG DEBUG_PRINT_HEX) #uncomment this if you need debug serial exchange
 
-add_executable(${CMAKE_PROJECT_NAME} utils/stntool.cpp)
-target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE ./stnlib ./serial/include)
-target_link_libraries(${CMAKE_PROJECT_NAME} stnlib serial)
+add_executable(stntool utils/stntool.cpp)
+target_include_directories(stntool PRIVATE ./stnlib ./serial/include)
+target_link_libraries(stntool stnlib serial)
 
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
     add_compile_options(-Werror=vla)

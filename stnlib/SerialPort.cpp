@@ -27,8 +27,8 @@ static inline void print_buffer(int rdlen, const unsigned char *const buf, int i
 #endif
 }
 
-SerialPort::SerialPort(string port, uint32_t baudrate): m_portName(std::move(port)) {
-
+SerialPort::SerialPort(string port, uint32_t baudrate, bool verbose): m_portName(std::move(port)), m_verbose(verbose)
+{
     try {
         m_serial = std::make_unique<serial::Serial>(m_portName,
                                                     baudrate,
@@ -67,7 +67,7 @@ void SerialPort::enumerate_ports()
 
 int SerialPort::check_baudrate(uint32_t baud) {
 
-    std::cerr << "Check baud: " << baud << std::endl;
+    if(m_verbose) std::cerr << "Check baud: " << baud << std::endl;
 
     m_serial->setBaudrate(baud);
 
@@ -87,11 +87,11 @@ int SerialPort::check_baudrate(uint32_t baud) {
 
     m_serial->setTimeout(tmp_timeout);
 
-    if (r.second.find("ELM327 v1.3a") == std::string::npos) {
+    if (r.second.find("ELM327 v1.") == std::string::npos) {
         return -1;
     }
 
-    std::cerr << "Baud " << baud << " supported" << std::endl;
+    if(m_verbose) std::cerr << "Baud " << baud << " supported" << std::endl;
 
     return 0;
 }
@@ -124,7 +124,7 @@ int SerialPort::set_baudrate(uint32_t baud, bool save) {
 
     read_line="";
     auto bytes_read = m_serial->readline(read_line, 65536, "\r");
-    print_buffer(bytes_read, reinterpret_cast<const unsigned char *const>(read_line.c_str()), false);
+    if(m_verbose) print_buffer(bytes_read, reinterpret_cast<const unsigned char *const>(read_line.c_str()), false);
     if(read_line.find("OK") == std::string::npos) {
         m_serial->readline(read_line, 65536, ">");
         return -1;
@@ -135,7 +135,7 @@ int SerialPort::set_baudrate(uint32_t baud, bool save) {
 
     read_line="";
     bytes_read = m_serial->readline(read_line, 65536, "\r");
-    print_buffer(read_line.size(), reinterpret_cast<const unsigned char *const>(read_line.c_str()), false);
+    if(m_verbose) print_buffer(read_line.size(), reinterpret_cast<const unsigned char *const>(read_line.c_str()), false);
 
     /* Host: received a valid STI string? */
     if(read_line.find("STN1170 v3.3.1") == std::string::npos) {
@@ -146,7 +146,7 @@ int SerialPort::set_baudrate(uint32_t baud, bool save) {
 
     read_line="";
     bytes_read = m_serial->readline(read_line, 65536, ">");
-    print_buffer(read_line.size(), reinterpret_cast<const unsigned char *const>(read_line.c_str()), false);
+    if(m_verbose) print_buffer(read_line.size(), reinterpret_cast<const unsigned char *const>(read_line.c_str()), false);
 
     if(read_line.find("OK") == std::string::npos) {
         goto cleanup;
@@ -174,22 +174,18 @@ int SerialPort::maximize_baudrate() {
         return -1;
     }
 
-    //TODO: find pos in sorted arr
     auto baud = m_serial->getBaudrate();
-    int i=0;
-    while (baud != baud_arr[i]) {
-        if(++i > baud_arr_sz) {
-            return baud; //already maximized
-        }
-    }
+    auto it = baud_arr.lower_bound(baud);
+    if(it == baud_arr.end())
+        return baud; //already maximized
 
-    for(int j = i + 1; j < baud_arr_sz; ++j) {
-        if(set_baudrate(baud_arr[j], false)) { //if ok, goes next
-            std::cerr << "Baud rate " << baud_arr[j] << " not supported" << std::endl;
+    for(; it != baud_arr.end(); ++it) {
+        if(set_baudrate(*it, false)) { //if ok, goes next
+            if(m_verbose) std::cerr << "Baud rate " << *it << " not supported" << std::endl;
             continue;
         }
-        std::cerr << "Baud rate " << baud_arr[j] << " supported" << std::endl;
-        baud = baud_arr[j];
+        if(m_verbose) std::cerr << "Baud rate " << *it << " supported" << std::endl;
+        baud = *it;
     }
 
     serial_transaction("STWBR\r");
@@ -200,14 +196,14 @@ int SerialPort::maximize_baudrate() {
 std::pair<int, std::string>
 SerialPort::serial_transaction(const std::string &req) {
 
-    print_buffer(req.size(), reinterpret_cast<const unsigned char *const>(req.data()), true);
+    if(m_verbose) print_buffer(req.size(), reinterpret_cast<const unsigned char *const>(req.data()), true);
 
     size_t bytes_wrote = m_serial->write(req);
 
     std::string read_line;
     auto bytes_read = m_serial->readline(read_line, 65536, ">");
 
-    print_buffer(read_line.size(), reinterpret_cast<const unsigned char *const>(read_line.c_str()), false);
+    if(m_verbose) print_buffer(read_line.size(), reinterpret_cast<const unsigned char *const>(read_line.c_str()), false);
 
     return {0, read_line};
 }

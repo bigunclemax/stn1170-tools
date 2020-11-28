@@ -23,7 +23,7 @@ int main(int argc, char *argv[])
                 ("b,baud", "specify STN11xx UART baud", cxxopts::value<int>(connect_baud))
                 ("m,maximize","maximize STN11xx UART baud", cxxopts::value<bool>(maximize))
                 ("i,info","info about STN11xx device", cxxopts::value<bool>(info))
-                ("v,verbose","Verbose output")
+                ("v,verbose","Verbose output", cxxopts::value<bool>(verbose))
                 ("h,help","Print help");
 
         options.parse_positional({"port"});
@@ -46,7 +46,7 @@ int main(int argc, char *argv[])
         }
 
         if (wish_baud) {
-            auto serial = SerialPort(result["port"].as<string>(), connect_baud);
+            auto serial = SerialPort(result["port"].as<string>(), connect_baud, verbose);
             if (serial.set_baudrate(wish_baud, true)) {
                 cout << "Set device baud error" << std::endl;
             } else {
@@ -57,7 +57,7 @@ int main(int argc, char *argv[])
         }
 
         if (maximize) {
-            auto serial = SerialPort(result["port"].as<string>(), connect_baud);
+            auto serial = SerialPort(result["port"].as<string>(), connect_baud, verbose);
             auto maximized_baud = serial.maximize_baudrate();
             if (maximized_baud > 0) {
                 cout << "Device baud maximized to: " << maximized_baud << std::endl;
@@ -69,7 +69,7 @@ int main(int argc, char *argv[])
         }
 
         if (info) {
-            auto serial = SerialPort(result["port"].as<string>(), connect_baud);
+            auto serial = SerialPort(result["port"].as<string>(), connect_baud, verbose);
             cout << serial.get_info() << std::endl;
 
             return 0;
