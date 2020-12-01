@@ -83,6 +83,7 @@ private:
     std::unique_ptr<serial::Serial> m_serial;
     string  m_portName;
     bool    m_verbose;
+    string  m_sti_str;
 };
 }
 

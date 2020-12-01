@@ -48,6 +48,13 @@ SerialPort::SerialPort(string port, uint32_t baudrate, bool verbose): m_portName
     }
 
     serial_transaction("ATE0\r");
+
+    auto r = serial_transaction("STI\r");
+    if(r.first) {
+        throw std::runtime_error("execute STI command error");
+    }
+    std::getline(std::stringstream(r.second), m_sti_str, '\r');
+
 }
 
 void SerialPort::enumerate_ports()
@@ -138,7 +145,7 @@ int SerialPort::set_baudrate(uint32_t baud, bool save) {
     if(m_verbose) print_buffer(read_line.size(), reinterpret_cast<const unsigned char *const>(read_line.c_str()), false);
 
     /* Host: received a valid STI string? */
-    if(read_line.find("STN1170 v3.3.1") == std::string::npos) {
+    if(read_line.find(m_sti_str) == std::string::npos) {
         goto cleanup;
     }
 
