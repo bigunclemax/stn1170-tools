@@ -3,4 +3,4 @@
 	url = https://github.com/jarro2783/cxxopts.git
 [submodule "serial"]
 	path = serial
-	url = https://github.com/wjwwood/serial.git
+	url = https://github.com/bigunclemax/serial.git
