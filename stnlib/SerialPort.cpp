@@ -31,7 +31,7 @@ SerialPort::SerialPort(string port, uint32_t baudrate, bool verbose): m_portName
 {
     try {
         m_serial = std::make_unique<serial::Serial>(m_portName,
-                                                    baudrate,
+                                                    9600,
                                                     serial::Timeout::simpleTimeout(transaction_timeout));
     } catch (serial::IOException &e) {
         throw std::runtime_error(e.what());
