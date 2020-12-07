@@ -70,15 +70,14 @@ public:
 
     std::string get_info();
 
+    std::pair<int, std::string> serial_transaction(const std::string &req);
+
     static void enumerate_ports();
 private:
 
     static constexpr int transaction_timeout = 3000;
     static constexpr int check_baudrate_timeout = 1000; ///< max els response timeout in ms
     static constexpr int set_baudrate_timeout = 1000;   ///< baud rate switch timeout in ms
-
-    std::pair<int, std::string> serial_transaction(const std::string &req);
-
 
     std::unique_ptr<serial::Serial> m_serial;
     string  m_portName;
