@@ -41,8 +41,7 @@ CanDevice::CanDevice(string port, uint32_t baudrate, bool verbose): m_portName(s
         if(check_baudrate(baudrate))
             throw std::runtime_error("can't connect to adapter with baud: " + std::to_string(baudrate));
     } else {
-        baudrate = detect_baudrate();
-        if(baudrate < 0) {
+        if(detect_baudrate() < 0) {
             throw std::runtime_error("can't auto detect adapter baud");
         }
     }
