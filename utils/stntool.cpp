@@ -1,5 +1,5 @@
 #include <cxxopts.hpp>
-#include <SerialPort.h>
+#include <CanDevice.h>
 #include <iostream>
 
 using namespace stnlib;
@@ -36,7 +36,7 @@ int main(int argc, char *argv[])
         }
 
         if (list) {
-            SerialPort::enumerate_ports();
+            CanDevice::enumerate_ports();
             return 0;
         }
 
@@ -46,7 +46,7 @@ int main(int argc, char *argv[])
         }
 
         if (wish_baud) {
-            auto serial = SerialPort(result["port"].as<string>(), connect_baud, verbose);
+            auto serial = CanDevice(result["port"].as<string>(), connect_baud, verbose);
             if (serial.set_baudrate(wish_baud, true)) {
                 cout << "Set device baud error" << std::endl;
             } else {
@@ -57,7 +57,7 @@ int main(int argc, char *argv[])
         }
 
         if (maximize) {
-            auto serial = SerialPort(result["port"].as<string>(), connect_baud, verbose);
+            auto serial = CanDevice(result["port"].as<string>(), connect_baud, verbose);
             auto maximized_baud = serial.maximize_baudrate();
             if (maximized_baud > 0) {
                 cout << "Device baud maximized to: " << maximized_baud << std::endl;
@@ -69,7 +69,7 @@ int main(int argc, char *argv[])
         }
 
         if (info) {
-            auto serial = SerialPort(result["port"].as<string>(), connect_baud, verbose);
+            auto serial = CanDevice(result["port"].as<string>(), connect_baud, verbose);
             cout << serial.get_info() << std::endl;
 
             return 0;

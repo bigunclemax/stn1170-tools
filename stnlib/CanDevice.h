@@ -23,7 +23,8 @@ struct ControllerSettings {
 
 enum CAN_PROTO {
     CAN_MS,
-    CAN_HS
+    CAN_HS,
+    CAN_MM
 };
 
 const std::set<uint32_t> baud_arr = {
@@ -47,7 +48,7 @@ const std::set<uint32_t> baud_arr = {
         4000000
 };
 
-class SerialPort {
+class CanDevice {
 public:
 
     inline static void hex2ascii(const uint8_t *bin, unsigned int binsz, char *result) {
@@ -58,7 +59,7 @@ public:
         }
     };
 
-    explicit SerialPort(string port, uint32_t baudrate = 0, bool verbose = false);
+    explicit CanDevice(string port, uint32_t baudrate = 0, bool verbose = false);
 
     int check_baudrate(uint32_t baud);
 
@@ -73,6 +74,9 @@ public:
     std::pair<int, std::string> serial_transaction(const std::string &req);
 
     static void enumerate_ports();
+
+    int set_protocol(CAN_PROTO protocol);
+
 private:
 
     static constexpr int transaction_timeout = 3000;
@@ -80,6 +84,7 @@ private:
     static constexpr int set_baudrate_timeout = 1000;   ///< baud rate switch timeout in ms
 
     std::unique_ptr<serial::Serial> m_serial;
+    bool    m_isElm327 = false;
     string  m_portName;
     bool    m_verbose;
     string  m_sti_str;

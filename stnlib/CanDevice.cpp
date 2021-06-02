@@ -1,6 +1,6 @@
 #include <iostream>
 #include <thread>
-#include "SerialPort.h"
+#include "CanDevice.h"
 
 using namespace stnlib;
 
@@ -27,7 +27,7 @@ static inline void print_buffer(int rdlen, const unsigned char *const buf, int i
 #endif
 }
 
-SerialPort::SerialPort(string port, uint32_t baudrate, bool verbose): m_portName(std::move(port)), m_verbose(verbose)
+CanDevice::CanDevice(string port, uint32_t baudrate, bool verbose): m_portName(std::move(port)), m_verbose(verbose)
 {
     try {
         m_serial = std::make_unique<serial::Serial>(m_portName,
@@ -55,9 +55,12 @@ SerialPort::SerialPort(string port, uint32_t baudrate, bool verbose): m_portName
     }
     std::getline(std::stringstream(r.second), m_sti_str, '\r');
 
+    if (m_sti_str.find("STN") == std::string::npos) {
+        m_isElm327 = true;
+    }
 }
 
-void SerialPort::enumerate_ports()
+void CanDevice::enumerate_ports()
 {
     vector<serial::PortInfo> devices_found = serial::list_ports();
 
@@ -72,7 +75,7 @@ void SerialPort::enumerate_ports()
     }
 }
 
-int SerialPort::check_baudrate(uint32_t baud) {
+int CanDevice::check_baudrate(uint32_t baud) {
 
     if(m_verbose) std::cerr << "Check baud: " << baud << std::endl;
 
@@ -103,7 +106,7 @@ int SerialPort::check_baudrate(uint32_t baud) {
     return 0;
 }
 
-int SerialPort::detect_baudrate() {
+int CanDevice::detect_baudrate() {
 
     for(unsigned int i : baud_arr) {
         if(!check_baudrate(i))
@@ -113,7 +116,7 @@ int SerialPort::detect_baudrate() {
     return -1;
 }
 
-int SerialPort::set_baudrate(uint32_t baud, bool save) {
+int CanDevice::set_baudrate(uint32_t baud, bool save) {
 
     auto curr_baud = m_serial->getBaudrate();
 
@@ -173,7 +176,7 @@ cleanup:
     return -1;
 }
 
-int SerialPort::maximize_baudrate() {
+int CanDevice::maximize_baudrate() {
 
     /* set baudrate timeout in ms */
     std::string str = "STBRT " + std::to_string(set_baudrate_timeout) + "\r";
@@ -201,7 +204,7 @@ int SerialPort::maximize_baudrate() {
 }
 
 std::pair<int, std::string>
-SerialPort::serial_transaction(const std::string &req) {
+CanDevice::serial_transaction(const std::string &req) {
 
     if(m_verbose) print_buffer(req.size(), reinterpret_cast<const unsigned char *const>(req.data()), true);
 
@@ -215,7 +218,7 @@ SerialPort::serial_transaction(const std::string &req) {
     return {0, read_line};
 }
 
-std::string SerialPort::get_info() {
+std::string CanDevice::get_info() {
 
     auto f = [](const string& s){ return s.substr(0, s.find('\r'));};
 
@@ -228,4 +231,32 @@ std::string SerialPort::get_info() {
     ss << "STSN:\t"  << f(serial_transaction("STSN\r").second) << std::endl;
 
     return ss.str();
+}
+
+int CanDevice::set_protocol(CAN_PROTO protocol) {
+
+    if (CAN_MS == protocol) {
+        if(m_isElm327) {
+            serial_transaction("ATSPB\r");   // User1 CAN (11* bit ID, 125* kbaud
+        } else {
+            serial_transaction("STP53\r");   //ISO 15765, 11-bit Tx, 125kbps, DLC=8
+        }
+    } else if (CAN_HS == protocol) {
+        if(m_isElm327) {
+            //TODO:            serial_transaction("ATSP
+            return -1;
+        } else {
+            serial_transaction("STP33\r");   //ISO 15765, 11-bit Tx, 500kbps, DLC=8
+        }
+    } else if (CAN_MM == protocol) {
+        if(m_isElm327) {
+            /* MM-CAN not supported by vanilla ELM327 */
+            return -1;
+        } else {
+            //TODO: serial_transaction("STP33\r");   //ISO 15765, 11-bit Tx, 500kbps, DLC=8
+            return -1;
+        }
+    }
+
+    return 0;
 }
