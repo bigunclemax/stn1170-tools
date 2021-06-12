@@ -11,7 +11,8 @@ include_directories(cxxopts/include)
 add_subdirectory(serial)
 
 add_library(stnlib stnlib/CanDevice.cpp)
-target_include_directories(stnlib PRIVATE ./serial/include)
+target_include_directories(stnlib PUBLIC ./serial/include)
+target_link_libraries(stnlib serial)
 #target_compile_definitions(stnlib PRIVATE DEBUG DEBUG_PRINT_HEX) #uncomment this if you need debug serial exchange
 
 add_executable(stntool utils/stntool.cpp)
