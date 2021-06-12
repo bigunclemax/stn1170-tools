@@ -242,7 +242,7 @@ int CanDevice::set_protocol(CAN_PROTO protocol) {
         }
     } else if (CAN_HS == protocol) {
         if(m_isElm327) {
-            //TODO:            serial_transaction("ATSP
+            serial_transaction("ATSP6\r");   //ISO 15765, 11-bit Tx, 500kbps, DLC=8
             return -1;
         } else {
             serial_transaction("STP33\r");   //ISO 15765, 11-bit Tx, 500kbps, DLC=8
