@@ -85,9 +85,9 @@ int CanDevice::check_baudrate(uint32_t baud) {
     m_serial->setTimeout(t);
 
     /* clear */
-    if(serial_transaction("?\r").first) {
-        return -1;
-    }
+    m_serial->flush();
+    m_serial->write("?\r");
+    m_serial->readlines();
 
     auto r = serial_transaction("ATWS\r");
     if(r.first) {
